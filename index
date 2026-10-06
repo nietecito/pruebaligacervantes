@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Liga Cervantes 2026-27</title>
+
+  <!-- PapaParse para leer el CSV de Google Sheets -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+  <style>
+    :root {
+      --primary-color: #1a365d;
+      --secondary-color: #2b6cb0;
+      --accent-color: #319795;
+      --bg-color: #f7fafc;
+      --card-bg: #ffffff;
+      --text-color: #2d3748;
+      --border-color: #e2e8f0;
+
+      --gold: #b7791f;
+      --silver: #718096;
+      --bronze: #9c4221;
+
+      --pending-bg: #fffaf0;
+      --pending-border: #f6ad55;
+      --pending-text: #c05621;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 25px;
+      padding: 25px 15px;
+      background: var(--primary-color);
+      color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.10);
+    }
+
+    header h1 {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+    }
+
+    header p {
+      margin-top: 5px;
+      opacity: 0.85;
+      font-size: 0.95rem;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* ==============================
+       MENSAJES
+       ============================== */
+
+    #loading {
+      text-align: center;
+      font-size: 1.1rem;
+      color: #718096;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+    }
+
+    #error {
+      display: none;
+      text-align: center;
+      color: #c53030;
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    /* ==============================
+       PESTAÑAS
+       ============================== */
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      background: #e2e8f0;
+      padding: 5px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab-button {
+      border: none;
+      background: transparent;
+      color: var(--text-color);
+      padding: 13px 10px;
+      border-radius: 7px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-button:hover {
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    .tab-button.active {
+      background: white;
+      color: var(--secondary-color);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* ==============================
+       SECCIONES
+       ============================== */
+
+    section {
+      background: var(--card-bg);
+      padding: 24px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      color: var(--primary-color);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .subtitulo {
+      color: #718096;
+      margin-top: -10px;
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+    }
+
+    /* ==============================
+       TABLA CLASIFICACIÓN
+       ============================== */
+
+    .table-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+      min-width: 720px;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      background-color: var(--secondary-color);
+      color: white;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover {
+      background-color: #f1f5f9;
+    }
+
+    td.team-name {
+      text-align: left;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    td.position {
+      font-weight: bold;
+    }
+
+    /* Primera posición */
+    tbody tr:nth-child(1) td.position {
+      color: var(--gold);
+      font-size: 1.05rem;
+    }
+
+    /* Segunda posición */
+    tbody tr:nth-child(2) td.position {
+      color: var(--silver);
+      font-size: 1.05rem;
+    }
+
+    /* Tercera posición */
+    tbody tr:nth-child(3) td.position {
+      color: var(--bronze);
+      font-size: 1.05rem;
+    }
+
+    /* Puntos */
+    td.points {
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+
+    /* ==============================
+       JORNADAS
+       ============================== */
+
+    .jornadas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 20px;
+    }
+
+    .jornada-card {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      background-color: #fafafa;
+    }
+
+    .jornada-card h3 {
+      font-size: 1.1rem;
+      color: var(--secondary-color);
+      margin-bottom: 12px;
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .jornada-card ul {
+      list-style: none;
+    }
+
+    .jornada-card li {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 8px;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px dashed var(--border-color);
+      font-size: 0.9rem;
+    }
+
+    .jornada-card li:last-child {
+      border-bottom: none;
+    }
+
+    .team-home {
+      text-align: right;
+    }
+
+    .team-away {
+      text-align: left;
+    }
+
+    .score {
+      font-weight: bold;
+      background: #edf2f7;
+      padding: 3px 8px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+
+    .score.pending {
+      color: var(--pending-text);
+      background: var(--pending-bg);
+      border: 1px solid var(--pending-border);
+      font-size: 0.8rem;
+    }
+
+    .score.horario {
+      color: var(--primary-color);
+      background: #edf2f7;
+      border: 1px solid var(--border-color);
+    }
+
+    /* ==============================
+       PRÓXIMA JORNADA
+       ============================== */
+
+    .next-round-header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .next-round-title {
+      font-size: 1.5rem;
+      color: var(--secondary-color);
+      font-weight: bold;
+    }
+
+    .next-round-description {
+      color: #718096;
+      margin-top: 5px;
+    }
+
+    .next-matches {
+      max-width: 750px;
+      margin: 0 auto;
+    }
+
+    .next-match {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 15px;
+      padding: 17px 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .next-match:last-child {
+      border-bottom: none;
+    }
+
+    .next-team-home {
+      text-align: right;
+      font-weight: 600;
+    }
+
+    .next-team-away {
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .next-score {
+      min-width: 80px;
+      text-align: center;
+      background: #edf2f7;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+
+    .next-score.pending {
+      background: var(--pending-bg);
+      color: var(--pending-text);
+      border: 1px solid var(--pending-border);
+      font-size: 0.8rem;
+    }
+
+    .next-score.horario {
+      background: #edf2f7;
+      color: var(--primary-color);
+      border: 1px solid var(--border-color);
+      font-size: 0.95rem;
+      min-width: 90px;
+    }
+
+    .next-score.horario::before {
+      content: '🕐 ';
+    }
+
+    .pending-label {
+      text-align: center;
+      margin-top: 20px;
+      color: var(--pending-text);
+      font-size: 0.9rem;
+    }
+
+    .all-finished {
+      text-align: center;
+      padding: 35px 15px;
+      color: #718096;
+    }
+
+    .all-finished .icon {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    /* ==============================
+       INFORMACIÓN
+       ============================== */
+
+    .info-bar {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .info-item {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 7px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      color: #4a5568;
+    }
+
+    .info-item strong {
+      color: var(--primary-color);
+    }
+
+  /* ============================================================
+     ÚLTIMA Y SIGUIENTE JORNADA
+     ============================================================ */
+
+   .proximas-jornadas-grid {
+     display: grid;
+     grid-template-columns: minmax(0, 750px);
+     justify-content: center;
+     gap: 30px;
+     width: 100%;
+     max-width: 750px;
+     margin: 0 auto;
+   }
+
+
+  /* Cada cuadro de jornada */
+
+  .jornada-resumen {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+
+  /* En pantallas pequeñas: una debajo de otra */
+
+  @media (max-width: 768px) {
+
+    .proximas-jornadas-grid {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: 750px;
+    }
+
+  }
+
+
+    
+    /* ==============================
+       RESPONSIVE
+       ============================== */
+
+    @media (max-width: 600px) {
+
+      body {
+        padding: 10px;
+      }
+
+      header {
+        margin-bottom: 15px;
+        padding: 20px 10px;
+      }
+
+      section {
+        padding: 15px;
+      }
+
+      .tabs {
+        gap: 3px;
+        padding: 3px;
+      }
+
+      .tab-button {
+        padding: 11px 5px;
+        font-size: 0.78rem;
+      }
+
+      .jornadas-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .jornada-card li {
+        font-size: 0.82rem;
+      }
+
+      .next-match {
+        gap: 7px;
+        padding: 14px 2px;
+        font-size: 0.85rem;
+      }
+
+      .next-score {
+        min-width: 68px;
+        padding: 5px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>🏆 Liga Cervantes</h1>
+    <p>Temporada 26-27</p>
+  </header>
+
+  <main>
+
+    <!-- CARGANDO -->
+    <div id="loading">
+      Cargando datos del torneo...
+    </div>
+
+    <!-- ERROR -->
+    <div id="error"></div>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <div id="contenido" style="display: none;">
+
+ <!-- INFORMACIÓN RESUMIDA -->
+         
+
+
+      <!-- PESTAÑAS -->
+      <div class="tabs">
+
+        <button
+          type="button"
+          class="tab-button active"
+          data-tab="clasificacion">
+          📊 Clasificación
+        </button>
+
+        <button
+          type="button"
+          class="tab-button"
+          data-tab="jornadas">
+          ⚽ Jornadas
+        </button>
+
+        <button
+          type="button"
+          class="tab-button"
+          data-tab="proxima">
+          📅 Próxima
+        </button>
+
+      </div>
+
+
+      <!-- ==========================================
+           PESTAÑA CLASIFICACIÓN
+           ========================================== -->
+
+      <div
+        id="tab-clasificacion"
+        class="tab-content active">
+
+        <section>
+
+          <h2>Tabla de Clasificación</h2>
+
+          <p class="subtitulo">
+            4ª División - Domingos Mañana
+          </p>
+
+          <div class="table-container">
+
+            <table>
+
+              <thead>
+
+                <tr>
+                  <th>Pos</th>
+                  <th style="text-align: left;">Equipo</th>
+                  <th>Pts</th>
+                  <th>PJ</th>
+                  <th>PG</th>
+                  <th>PE</th>
+                  <th>PP</th>
+                  <th>GF</th>
+                  <th>GC</th>
+                  <th>DG</th>
+                </tr>
+
+              </thead>
+
+              <tbody id="body-clasificacion">
+                <!-- Se genera con JavaScript -->
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
+
+      </div>
+
+
+      <!-- ==========================================
+           PESTAÑA JORNADAS
+           ========================================== -->
+
+      <div
+        id="tab-jornadas"
+        class="tab-content">
+
+        <section>
+
+          <h2>Jornadas y Resultados</h2>
+
+          <p class="subtitulo">
+            Consulta todos los partidos del torneo.
+          </p>
+
+          <div
+            id="contenedor-jornadas"
+            class="jornadas-grid">
+          </div>
+
+        </section>
+
+      </div>
+
+
+      <!-- ==========================================
+           PESTAÑA PRÓXIMA JORNADA
+           ========================================== -->
+
+      <div
+        id="tab-proxima"
+        class="tab-content">
+
+        <section>
+
+          <div
+            id="proxima-jornada-contenido">
+            <!-- Se genera con JavaScript -->
+          </div>
+
+        </section>
+
+      </div>
+
+    </div>
+
+  </main>
+
+
+  <script>
+
+    // ============================================================
+    // CONFIGURACIÓN
+    // ============================================================
+
+    const SHEET_CSV_URL =
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vTnB4t1kN7IDlmugRW2R7HNMNU-XCfdHlU3OWZifnjtto7A4l5zctDevB8mweRuGf2_F4iXwucexThV/pub?output=csv';
+
+
+    // ============================================================
+    // VARIABLES
+    // ============================================================
+
+    let partidosGlobal = [];
+
+
+    // ============================================================
+    // INICIO
+    // ============================================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+
+      configurarPestanas();
+
+      cargarDatos();
+
+    });
+
+
+    // ============================================================
+    // CONFIGURAR PESTAÑAS
+    // ============================================================
+
+    function configurarPestanas() {
+
+      const botones =
+        document.querySelectorAll('.tab-button');
+
+      botones.forEach(boton => {
+
+        boton.addEventListener('click', () => {
+
+          const tab =
+            boton.dataset.tab;
+
+
+          // Quitar activo de botones
+          botones.forEach(btn => {
+            btn.classList.remove('active');
+          });
+
+
+          // Activar botón seleccionado
+          boton.classList.add('active');
+
+
+          // Ocultar todos los contenidos
+          document
+            .querySelectorAll('.tab-content')
+            .forEach(contenido => {
+              contenido.classList.remove('active');
+            });
+
+
+          // Mostrar contenido correspondiente
+          const contenido =
+            document.getElementById('tab-' + tab);
+
+          if (contenido) {
+            contenido.classList.add('active');
+          }
+
+        });
+
+      });
+
+    }
+
+
+    // ============================================================
+    // CARGAR DATOS
+    // ============================================================
+
+    function cargarDatos() {
+
+      /*
+       * Añadimos un parámetro de tiempo para evitar que el navegador
+       * conserve una versión antigua del CSV.
+       */
+
+      const url =
+        SHEET_CSV_URL +
+        '&_=' +
+        Date.now();
+
+
+      Papa.parse(url, {
+
+        download: true,
+
+        header: true,
+
+        skipEmptyLines: true,
+
+        complete: function(results) {
+
+          if (
+            !results.data ||
+            results.data.length === 0
+          ) {
+
+            mostrarError(
+              'No se han encontrado datos en el Google Sheet.'
+            );
+
+            return;
+          }
+
+
+          try {
+
+            partidosGlobal = results.data;
+
+            procesarDatos(partidosGlobal);
+
+
+            document
+              .getElementById('loading')
+              .style.display = 'none';
+
+            document
+              .getElementById('contenido')
+              .style.display = 'block';
+
+          } catch (error) {
+
+            console.error(
+              'Error procesando los datos:',
+              error
+            );
+
+            mostrarError(
+              'Los datos se han cargado, pero no se han podido procesar correctamente.'
+            );
+
+          }
+
+        },
+
+        error: function(error) {
+
+          console.error(
+            'Error cargando CSV:',
+            error
+          );
+
+          mostrarError(
+            'No se han podido cargar los datos. Revisa que el Google Sheet esté publicado correctamente.'
+          );
+
+        }
+
+      });
+
+    }
+
+
+    // ============================================================
+    // MOSTRAR ERROR
+    // ============================================================
+
+    function mostrarError(mensaje) {
+
+      document
+        .getElementById('loading')
+        .style.display = 'none';
+
+
+      const error =
+        document.getElementById('error');
+
+
+      error.textContent = mensaje;
+
+      error.style.display = 'block';
+
+    }
+
+
+    // ============================================================
+    // PROCESAR DATOS
+    // ============================================================
+
+    function procesarDatos(partidos) {
+
+      const equipos = {};
+
+
+      partidos.forEach(partido => {
+
+        const local =
+          obtenerTexto(
+            partido['Equipo Local']
+          );
+
+        const visitante =
+          obtenerTexto(
+            partido['Equipo Visitante']
+          );
+
+
+        if (!local || !visitante) {
+          return;
+        }
+
+
+        // Crear equipos
+        [local, visitante].forEach(nombre => {
+
+          if (!equipos[nombre]) {
+
+            equipos[nombre] = {
+
+              nombre: nombre,
+
+              pj: 0,
+
+              pg: 0,
+
+              pe: 0,
+
+              pp: 0,
+
+              gf: 0,
+
+              gc: 0,
+
+              pts: 0
+
+            };
+
+          }
+
+        });
+
+
+        const golesLocal =
+          convertirGoles(
+            partido['Goles Local']
+          );
+
+        const golesVisitante =
+          convertirGoles(
+            partido['Goles Visitante']
+          );
+
+
+        // Solo contabilizar partidos jugados
+        if (
+          golesLocal !== null &&
+          golesVisitante !== null
+        ) {
+
+          equipos[local].pj++;
+
+          equipos[visitante].pj++;
+
+
+          equipos[local].gf += golesLocal;
+
+          equipos[local].gc += golesVisitante;
+
+
+          equipos[visitante].gf += golesVisitante;
+
+          equipos[visitante].gc += golesLocal;
+
+
+          // Victoria local
+          if (golesLocal > golesVisitante) {
+
+            equipos[local].pg++;
+
+            equipos[local].pts += 3;
+
+            equipos[visitante].pp++;
+
+          }
+
+          // Victoria visitante
+          else if (
+            golesLocal < golesVisitante
+          ) {
+
+            equipos[visitante].pg++;
+
+            equipos[visitante].pts += 3;
+
+            equipos[local].pp++;
+
+          }
+
+          // Empate
+          else {
+
+            equipos[local].pe++;
+
+            equipos[visitante].pe++;
+
+            equipos[local].pts++;
+
+            equipos[visitante].pts++;
+
+          }
+
+        }
+
+      });
+
+
+      // Convertir a array
+      const clasificacion =
+        Object.values(equipos);
+
+
+      // Ordenar clasificación
+      clasificacion.sort((a, b) => {
+
+        const dgA =
+          a.gf - a.gc;
+
+        const dgB =
+          b.gf - b.gc;
+
+
+        // 1. Puntos
+        if (b.pts !== a.pts) {
+          return b.pts - a.pts;
+        }
+
+
+        // 2. Diferencia de goles
+        if (dgB !== dgA) {
+          return dgB - dgA;
+        }
+
+
+        // 3. Goles a favor
+        if (b.gf !== a.gf) {
+          return b.gf - a.gf;
+        }
+
+
+        // 4. Nombre
+        return a.nombre.localeCompare(
+          b.nombre,
+          'es'
+        );
+
+      });
+
+
+      renderizarClasificacion(
+        clasificacion
+      );
+
+
+      renderizarJornadas(
+        partidos
+      );
+
+
+      renderizarProximaJornada(
+        partidos
+      );
+
+
+      
+
+    }
+
+
+    // ============================================================
+    // RESUMEN
+    // ============================================================
+
+
+    // ============================================================
+    // RENDERIZAR CLASIFICACIÓN
+    // ============================================================
+
+    function renderizarClasificacion(
+      tabla
+    ) {
+
+      const tbody =
+        document.getElementById(
+          'body-clasificacion'
+        );
+
+
+      tbody.innerHTML = '';
+
+
+      tabla.forEach(
+        (equipo, index) => {
+
+          const dg =
+            equipo.gf - equipo.gc;
+
+
+          const tr =
+            document.createElement('tr');
+
+
+          tr.innerHTML = `
+
+            <td class="position">
+              ${index + 1}
+            </td>
+
+            <td class="team-name">
+              ${escaparHTML(equipo.nombre)}
+            </td>
+
+            <td class="points">
+              <strong>
+                ${equipo.pts}
+              </strong>
+            </td>
+
+            <td>
+              ${equipo.pj}
+            </td>
+
+            <td>
+              ${equipo.pg}
+            </td>
+
+            <td>
+              ${equipo.pe}
+            </td>
+
+            <td>
+              ${equipo.pp}
+            </td>
+
+            <td>
+              ${equipo.gf}
+            </td>
+
+            <td>
+              ${equipo.gc}
+            </td>
+
+            <td>
+              ${dg > 0 ? '+' + dg : dg}
+            </td>
+
+          `;
+
+
+          tbody.appendChild(tr);
+
+        }
+      );
+
+    }
+
+
+    // ============================================================
+    // AGRUPAR JORNADAS
+    // ============================================================
+
+    function agruparJornadas(partidos) {
+
+      const jornadas = {};
+
+
+      partidos.forEach(partido => {
+
+        const jornada =
+          obtenerTexto(
+            partido['Jornada']
+          );
+
+        const local =
+          obtenerTexto(
+            partido['Equipo Local']
+          );
+
+        const visitante =
+          obtenerTexto(
+            partido['Equipo Visitante']
+          );
+
+
+        if (
+          !jornada ||
+          !local ||
+          !visitante
+        ) {
+          return;
+        }
+
+
+        if (!jornadas[jornada]) {
+          jornadas[jornada] = [];
+        }
+
+
+        jornadas[jornada].push(
+          partido
+        );
+
+      });
+
+
+      return jornadas;
+
+    }
+
+
+    // ============================================================
+    // RENDERIZAR TODAS LAS JORNADAS
+    // ============================================================
+
+    function renderizarJornadas(
+      partidos
+    ) {
+
+      const contenedor =
+        document.getElementById(
+          'contenedor-jornadas'
+        );
+
+
+      contenedor.innerHTML = '';
+
+
+      const jornadas =
+        agruparJornadas(partidos);
+
+
+      const jornadasOrdenadas =
+        Object.keys(jornadas)
+          .sort(ordenarJornadas);
+
+
+      jornadasOrdenadas.forEach(
+        jornadaKey => {
+
+          const divJornada =
+            document.createElement('div');
+
+
+          divJornada.className =
+            'jornada-card';
+
+
+          const titulo =
+            document.createElement('h3');
+
+
+          titulo.textContent =
+            jornadaKey;
+
+
+          const ul =
+            document.createElement('ul');
+
+
+          jornadas[jornadaKey].forEach(
+            partido => {
+
+              const local =
+                obtenerTexto(
+                  partido['Equipo Local']
+                );
+
+              const visitante =
+                obtenerTexto(
+                  partido['Equipo Visitante']
+                );
+
+
+              const golesLocal =
+                convertirGoles(
+                  partido['Goles Local']
+                );
+
+              const golesVisitante =
+                convertirGoles(
+                  partido['Goles Visitante']
+                );
+              const horario =
+                obtenerTexto(
+                  partido['Horario'] ??
+                  partido['Hora'] ??
+                  partido['HORA'] ??
+                  partido['horario'] ??
+                  partido['hora']
+                );
+
+              const jugado =
+                golesLocal !== null &&
+                golesVisitante !== null;
+
+
+              const marcador =
+                jugado
+                  ? `${golesLocal} - ${golesVisitante}`
+                  : 'Pendiente';
+
+              let marcador;
+                
+              const li =
+                document.createElement('li');
+
+
+              li.innerHTML = `
+
+                <span class="team-home">
+                  ${escaparHTML(local)}
+                </span>
+
+                <span class="score ${
+                  jugado
+                    ? ''
+                    : (horario ? 'horario' : 'pending')
+                }">
+                  ${marcador}
+                </span>
+
+                <span class="team-away">
+                  ${escaparHTML(visitante)}
+                </span>
+
+              `;
+
+
+              ul.appendChild(li);
+
+            }
+          );
+
+
+          divJornada.appendChild(
+            titulo
+          );
+
+          divJornada.appendChild(
+            ul
+          );
+
+
+          contenedor.appendChild(
+            divJornada
+          );
+
+        }
+      );
+
+    }
+
+
+    // ============================================================
+    // PRÓXIMA JORNADA
+    // ============================================================
+
+
+
+function renderizarProximaJornada(partidos) {
+
+  const contenedor =
+    document.getElementById(
+      'proxima-jornada-contenido'
+    );
+
+  contenedor.innerHTML = '';
+
+  const grid =
+  document.createElement('div');
+
+grid.className =
+  'proximas-jornadas-grid';
+
+contenedor.appendChild(grid);
+
+  
+  const jornadas =
+    agruparJornadas(partidos);
+
+  const jornadasOrdenadas =
+    Object.keys(jornadas)
+      .sort(ordenarJornadas);
+
+
+  // ==========================================================
+  // BUSCAR ÚLTIMA JORNADA COMPLETAMENTE JUGADA
+  // ==========================================================
+
+  let ultimaJornada = null;
+
+  jornadasOrdenadas.forEach(jornada => {
+
+    const partidosJornada =
+      jornadas[jornada];
+
+    const todosJugados =
+      partidosJornada.length > 0 &&
+      partidosJornada.every(partido => {
+
+        const gl =
+          convertirGoles(
+            partido['Goles Local']
+          );
+
+        const gv =
+          convertirGoles(
+            partido['Goles Visitante']
+          );
+
+        return (
+          gl !== null &&
+          gv !== null
+        );
+
+      });
+
+    if (todosJugados) {
+
+      ultimaJornada = jornada;
+
+    }
+
+  });
+
+
+  // ==========================================================
+  // BUSCAR SIGUIENTE JORNADA
+  // ==========================================================
+
+  let siguienteJornada = null;
+
+  for (
+    const jornada of jornadasOrdenadas
+  ) {
+
+    const partidosJornada =
+      jornadas[jornada];
+
+    const hayPartidosSinJugar =
+      partidosJornada.some(partido => {
+
+        const gl =
+          convertirGoles(
+            partido['Goles Local']
+          );
+
+        const gv =
+          convertirGoles(
+            partido['Goles Visitante']
+          );
+
+        return (
+          gl === null ||
+          gv === null
+        );
+
+      });
+
+    if (hayPartidosSinJugar) {
+
+      siguienteJornada = jornada;
+
+      break;
+
+    }
+
+  }
+
+
+  // ==========================================================
+  // MOSTRAR ÚLTIMA JORNADA JUGADA
+  // ==========================================================
+
+  if (ultimaJornada) {
+
+    const bloqueUltima =
+      document.createElement('div');
+
+    bloqueUltima.innerHTML = `
+
+      <div class="next-round-header">
+
+        <div class="next-round-title">
+          ✅ Última jornada jugada
+        </div>
+
+        <div class="next-round-description">
+          ${escaparHTML(ultimaJornada)}
+        </div>
+
+      </div>
+
+    `;
+
+    grid.appendChild(
+      bloqueUltima
+    );
+
+
+    const partidosUltima =
+      crearListaPartidos(
+        jornadas[ultimaJornada]
+      );
+
+    bloqueUltima.appendChild(
+      partidosUltima
+    );
+
+  }
+
+
+  // ==========================================================
+  // MOSTRAR SIGUIENTE JORNADA
+  // ==========================================================
+
+  if (siguienteJornada) {
+
+    const bloqueSiguiente =
+      document.createElement('div');
+
+    bloqueSiguiente.innerHTML = `
+
+      <div class="next-round-header">
+
+        <div class="next-round-title">
+          📅 Siguiente jornada
+        </div>
+
+        <div class="next-round-description">
+          ${escaparHTML(siguienteJornada)}
+        </div>
+
+      </div>
+
+    `;
+
+    contenedor.appendChild(
+      bloqueSiguiente
+    );
+
+
+    const partidosSiguiente =
+      crearListaPartidos(
+        jornadas[siguienteJornada]
+      );
+
+    contenedor.appendChild(
+      partidosSiguiente
+    );
+
+  }
+
+
+  // ==========================================================
+  // SI TODO EL TORNEO ESTÁ TERMINADO
+  // ==========================================================
+
+  if (
+    !ultimaJornada &&
+    !siguienteJornada
+  ) {
+
+    contenedor.innerHTML = `
+
+      <div class="all-finished">
+
+        <div class="icon">
+          🏆
+        </div>
+
+        <h2>
+          ¡Todas las jornadas completadas!
+        </h2>
+
+        <p>
+          No hay partidos pendientes en el torneo.
+        </p>
+
+      </div>
+
+    `;
+
+  }
+
+}
+
+
+// ============================================================
+// CREAR LISTA DE PARTIDOS
+// ============================================================
+
+function crearListaPartidos(partidos) {
+
+  const container =
+    document.createElement('div');
+
+  container.className =
+    'next-matches';
+
+
+  partidos.forEach(partido => {
+
+    const local =
+      obtenerTexto(
+        partido['Equipo Local']
+      );
+
+    const visitante =
+      obtenerTexto(
+        partido['Equipo Visitante']
+      );
+
+
+    const golesLocal =
+      convertirGoles(
+        partido['Goles Local']
+      );
+
+    const golesVisitante =
+      convertirGoles(
+        partido['Goles Visitante']
+      );
+
+
+    const horario =
+      obtenerTexto(
+        partido['Horario'] ??
+        partido['Hora'] ??
+        partido['HORA'] ??
+        partido['horario'] ??
+        partido['hora']
+      );
+
+
+    const jugado =
+      golesLocal !== null &&
+      golesVisitante !== null;
+
+
+    let marcador;
+
+
+    // ========================================================
+    // PARTIDO YA JUGADO
+    // ========================================================
+
+    if (jugado) {
+
+      marcador =
+        `${golesLocal} - ${golesVisitante}`;
+
+    }
+
+
+    // ========================================================
+    // PARTIDO SIN RESULTADO PERO CON HORARIO
+    // ========================================================
+
+    else if (horario) {
+
+      marcador =
+        formatearHorario(horario);
+
+    }
+
+
+    // ========================================================
+    // PARTIDO SIN RESULTADO Y SIN HORARIO
+    // ========================================================
+
+    else {
+
+      marcador =
+        'Pendiente';
+
+    }
+
+
+    const partidoDiv =
+      document.createElement('div');
+
+    partidoDiv.className =
+      'next-match';
+
+
+    partidoDiv.innerHTML = `
+
+      <span class="next-team-home">
+        ${escaparHTML(local)}
+      </span>
+
+      <span class="next-score ${
+        !jugado
+          ? (horario ? 'horario' : 'pending')
+          : ''
+      }">
+
+        ${escaparHTML(marcador)}
+
+      </span>
+
+      <span class="next-team-away">
+        ${escaparHTML(visitante)}
+      </span>
+
+    `;
+
+
+    container.appendChild(
+      partidoDiv
+    );
+
+  });
+
+
+  return container;
+
+}
+
+
+// ============================================================
+// FORMATEAR HORARIO
+// ============================================================
+
+function formatearHorario(valor) {
+
+    if (valor === null || valor === undefined) {
+      return '';
+    }
+
+    const texto = String(valor).trim();
+
+    /*
+     * Google Sheets puede devolver la hora como:
+     * 18:00
+     * 18:00:00
+     * 18:00:00.000
+     *
+     * También puede devolver una fracción de día, por ejemplo:
+     * 0.75 = 18:00.
+     */
+
+    const coincidencia = texto.match(/(\d{1,2}):(\d{2})/);
+
+    if (coincidencia) {
+
+      const horas =
+        coincidencia[1].padStart(2, '0');
+
+      const minutos =
+        coincidencia[2];
+
+      return `${horas}:${minutos}`;
+
+    }
+
+    const numero = Number(texto);
+
+    if (
+      Number.isFinite(numero) &&
+      numero >= 0 &&
+      numero < 1
+    ) {
+
+      const totalMinutos =
+        Math.round(numero * 24 * 60);
+
+      const horas =
+        Math.floor(totalMinutos / 60) % 24;
+
+      const minutos =
+        totalMinutos % 60;
+
+      return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+
+    }
+
+    return texto;
+
+}
+
+
+    
+    // ============================================================
+    // ORDENAR JORNADAS
+    // ============================================================
+
+    function ordenarJornadas(a, b) {
+
+      const numeroA =
+        extraerNumero(a);
+
+      const numeroB =
+        extraerNumero(b);
+
+
+      if (
+        numeroA !== null &&
+        numeroB !== null
+      ) {
+
+        return numeroA - numeroB;
+
+      }
+
+
+      if (numeroA !== null) {
+        return -1;
+      }
+
+
+      if (numeroB !== null) {
+        return 1;
+      }
+
+
+      return a.localeCompare(
+        b,
+        'es'
+      );
+
+    }
+
+
+    // ============================================================
+    // EXTRAER NÚMERO DE JORNADA
+    // ============================================================
+
+    function extraerNumero(
+      texto
+    ) {
+
+      const coincidencia =
+        String(texto).match(/\d+/);
+
+
+      return coincidencia
+        ? parseInt(
+            coincidencia[0],
+            10
+          )
+        : null;
+
+    }
+
+
+    // ============================================================
+    // OBTENER TEXTO
+    // ============================================================
+
+    function obtenerTexto(
+      valor
+    ) {
+
+      if (
+        valor === null ||
+        valor === undefined
+      ) {
+
+        return '';
+
+      }
+
+
+      return String(valor).trim();
+
+    }
+
+
+    // ============================================================
+    // CONVERTIR GOLES
+    // ============================================================
+
+    function convertirGoles(
+      valor
+    ) {
+
+      if (
+        valor === null ||
+        valor === undefined
+      ) {
+
+        return null;
+
+      }
+
+
+      const texto =
+        String(valor).trim();
+
+
+      if (texto === '') {
+        return null;
+      }
+
+
+      const numero =
+        Number(texto);
+
+
+      if (
+        !Number.isFinite(numero) ||
+        !Number.isInteger(numero) ||
+        numero < 0
+      ) {
+
+        return null;
+
+      }
+
+
+      return numero;
+
+    }
+
+
+    // ============================================================
+    // ESCAPAR HTML
+    // ============================================================
+
+    function escaparHTML(
+      texto
+    ) {
+
+      return String(texto)
+
+        .replace(
+          /&/g,
+          '&amp;'
+        )
+
+        .replace(
+          /</g,
+          '&lt;'
+        )
+
+        .replace(
+          />/g,
+          '&gt;'
+        )
+
+        .replace(
+          /"/g,
+          '&quot;'
+        )
+
+        .replace(
+          /'/g,
+          '&#039;'
+        );
+
+    }
+
+  </script>
+
+</body>
+</html>
